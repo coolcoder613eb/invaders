@@ -45,6 +45,13 @@ async fn main() {
                     80.0,
                     BLACK,
                 );
+                draw_text(
+                    format!("Score: {}", score).as_str(),
+                    (screen_width() / 2.0) - 140.0,
+                    (screen_height() / 2.0) + 80.0,
+                    80.0,
+                    BLACK,
+                );
                 next_frame().await
             }
         }
