@@ -1,3 +1,7 @@
+#[cfg(feature = "audio")]
+use macroquad::audio::{
+    load_sound_from_bytes, play_sound, play_sound_once, stop_sound, PlaySoundParams,
+};
 use macroquad::prelude::*;
 use macroquad::time::get_time;
 use rand::{gen_range, ChooseRandom};
@@ -24,6 +28,35 @@ async fn main() {
     let mut last_shot_time = 0.0;
     let mut last_fireball_time = 0.0;
 
+    #[cfg(feature = "audio")]
+    let music = load_sound_from_bytes(include_bytes!("../assets/music.ogg"))
+        .await
+        .expect("Failed to load music");
+
+    #[cfg(feature = "audio")]
+    let defender_shoot_sound =
+        load_sound_from_bytes(include_bytes!("../assets/defender_shoot.ogg"))
+            .await
+            .expect("Failed to load defender shoot sound");
+
+    #[cfg(feature = "audio")]
+    let attacker_shoot_sound =
+        load_sound_from_bytes(include_bytes!("../assets/attacker_shoot.ogg"))
+            .await
+            .expect("Failed to load attacker shoot sound");
+
+    #[cfg(feature = "audio")]
+    let defender_explode_sound =
+        load_sound_from_bytes(include_bytes!("../assets/defender_explode.ogg"))
+            .await
+            .expect("Failed to load defender explode sound");
+
+    #[cfg(feature = "audio")]
+    let attacker_explode_sound =
+        load_sound_from_bytes(include_bytes!("../assets/attacker_explode.ogg"))
+            .await
+            .expect("Failed to load attacker explode sound");
+
     // Define speeds in units per second
     const PROJECTILE_SPEED: f32 = 300.0; // pixels per second
     const DEFENDER_SPEED: f32 = 200.0; // pixels per second
@@ -44,12 +77,35 @@ async fn main() {
 
     let mut last_frame_time = get_time();
 
+    #[cfg(feature = "audio")]
+    play_sound_once(
+        &load_sound_from_bytes(include_bytes!("../assets/start.ogg"))
+            .await
+            .expect("Failed to load start sound"),
+    );
+    #[cfg(feature = "audio")]
+    play_sound(
+        &music,
+        PlaySoundParams {
+            looped: true,
+            volume: 0.5,
+        },
+    );
+
     loop {
         let current_time = get_time();
         let delta_time = (current_time - last_frame_time) as f32;
         last_frame_time = current_time;
 
         if lives <= 0 {
+            #[cfg(feature = "audio")]
+            stop_sound(&music);
+            #[cfg(feature = "audio")]
+            play_sound_once(
+                &load_sound_from_bytes(include_bytes!("../assets/game_over.ogg"))
+                    .await
+                    .expect("Failed to load game over sound"),
+            );
             loop {
                 clear_background(RED);
                 draw_text(
@@ -83,6 +139,8 @@ async fn main() {
         }
         if is_key_pressed(KeyCode::Space) {
             if current_time - last_shot_time > SHOT_COOLDOWN {
+                #[cfg(feature = "audio")]
+                play_sound_once(&defender_shoot_sound);
                 bullets.push(defender);
                 last_shot_time = current_time;
             }
@@ -90,6 +148,14 @@ async fn main() {
 
         if current_time - last_fireball_time > FIREBALL_COOLDOWN {
             if let Some(attacker) = attackers.choose() {
+                #[cfg(feature = "audio")]
+                play_sound(
+                    &attacker_shoot_sound,
+                    PlaySoundParams {
+                        looped: false,
+                        volume: 0.5,
+                    },
+                );
                 fireballs.push(attacker.to_owned());
                 last_fireball_time = current_time;
             }
@@ -120,6 +186,8 @@ async fn main() {
         fireballs.retain_mut(|fireball| {
             if defender.distance(*fireball) < 30.0 {
                 lives -= 1;
+                #[cfg(feature = "audio")]
+                play_sound_once(&defender_explode_sound);
                 false
             } else {
                 true
@@ -175,6 +243,16 @@ async fn main() {
             attackers.retain(|attacker| attacker.distance(*bullet) >= 25.0);
             let removed = before_len - attackers.len();
             score += removed;
+            if removed > 0 {
+                #[cfg(feature = "audio")]
+                play_sound(
+                    &attacker_explode_sound,
+                    PlaySoundParams {
+                        looped: false,
+                        volume: 0.75,
+                    },
+                );
+            }
             difficulty += 0.1 * removed as f32;
             removed == 0 // keep bullet if it didn't hit anything (removed == 0), remove if it hit (removed > 0)
         });
@@ -186,6 +264,8 @@ async fn main() {
         attackers.retain(|attacker| {
             if attacker.y > screen_height() {
                 lives -= 1;
+                #[cfg(feature = "audio")]
+                play_sound_once(&defender_explode_sound);
                 false
             } else {
                 draw_circle(attacker.x, attacker.y, 25.0, BLUE);
