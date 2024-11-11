@@ -1,3 +1,4 @@
+#![windows_subsystem = "windows"]
 #[cfg(feature = "audio")]
 use macroquad::audio::{
     load_sound_from_bytes, play_sound, play_sound_once, stop_sound, PlaySoundParams,
@@ -183,6 +184,7 @@ async fn main() {
             }
         });
 
+        //remove fireballs that hit defender and decrement the lives
         fireballs.retain_mut(|fireball| {
             if defender.distance(*fireball) < 30.0 {
                 lives -= 1;
