@@ -7,12 +7,41 @@ use macroquad::prelude::*;
 use macroquad::time::get_time;
 use rand::{gen_range, ChooseRandom};
 
+#[derive(Debug)]
+struct Inputs {
+    right: bool,
+    left: bool,
+    shoot: bool,
+}
+
 fn new_attackers(attackers: &mut Vec<Vec2>) {
     for row in 1..4 {
         for col in 1..11 {
             attackers.push(vec2((col * 60) as f32, (row * 60) as f32));
         }
     }
+}
+
+fn get_input() -> Inputs {
+    let mut inputs = Inputs {
+        right: false,
+        left: false,
+        shoot: false,
+    };
+
+    inputs.right = is_key_down(KeyCode::Right);
+    inputs.left = is_key_down(KeyCode::Left);
+    inputs.shoot = is_key_pressed(KeyCode::Space);
+    #[cfg(feature = "touch")]
+    for touch in touches() {
+        if touch.position.x < screen_width() / 2.0 {
+            inputs.left = true;
+        } else if touch.position.x < screen_width() {
+            inputs.right = true;
+        }
+        inputs.shoot = true;
+    }
+    inputs
 }
 
 #[macroquad::main("Space Invaders")]
@@ -30,29 +59,63 @@ async fn main() {
     let mut last_fireball_time = 0.0;
 
     #[cfg(feature = "audio")]
+    #[cfg(feature = "wav")]
+    let music = load_sound_from_bytes(include_bytes!("../assets/music.wav"))
+        .await
+        .expect("Failed to load music");
+    #[cfg(feature = "audio")]
+    #[cfg(not(feature = "wav"))]
     let music = load_sound_from_bytes(include_bytes!("../assets/music.ogg"))
         .await
         .expect("Failed to load music");
 
     #[cfg(feature = "audio")]
+    #[cfg(feature = "wav")]
+    let defender_shoot_sound =
+        load_sound_from_bytes(include_bytes!("../assets/defender_shoot.wav"))
+            .await
+            .expect("Failed to load defender shoot sound");
+    #[cfg(feature = "audio")]
+    #[cfg(not(feature = "wav"))]
     let defender_shoot_sound =
         load_sound_from_bytes(include_bytes!("../assets/defender_shoot.ogg"))
             .await
             .expect("Failed to load defender shoot sound");
 
     #[cfg(feature = "audio")]
+    #[cfg(feature = "wav")]
+    let attacker_shoot_sound =
+        load_sound_from_bytes(include_bytes!("../assets/attacker_shoot.wav"))
+            .await
+            .expect("Failed to load attacker shoot sound");
+    #[cfg(feature = "audio")]
+    #[cfg(not(feature = "wav"))]
     let attacker_shoot_sound =
         load_sound_from_bytes(include_bytes!("../assets/attacker_shoot.ogg"))
             .await
             .expect("Failed to load attacker shoot sound");
 
     #[cfg(feature = "audio")]
+    #[cfg(feature = "wav")]
+    let defender_explode_sound =
+        load_sound_from_bytes(include_bytes!("../assets/defender_explode.wav"))
+            .await
+            .expect("Failed to load defender explode sound");
+    #[cfg(feature = "audio")]
+    #[cfg(not(feature = "wav"))]
     let defender_explode_sound =
         load_sound_from_bytes(include_bytes!("../assets/defender_explode.ogg"))
             .await
             .expect("Failed to load defender explode sound");
 
     #[cfg(feature = "audio")]
+    #[cfg(feature = "wav")]
+    let attacker_explode_sound =
+        load_sound_from_bytes(include_bytes!("../assets/attacker_explode.wav"))
+            .await
+            .expect("Failed to load attacker explode sound");
+    #[cfg(feature = "audio")]
+    #[cfg(not(feature = "wav"))]
     let attacker_explode_sound =
         load_sound_from_bytes(include_bytes!("../assets/attacker_explode.ogg"))
             .await
@@ -79,11 +142,20 @@ async fn main() {
     let mut last_frame_time = get_time();
 
     #[cfg(feature = "audio")]
+    #[cfg(feature = "wav")]
+    play_sound_once(
+        &load_sound_from_bytes(include_bytes!("../assets/start.wav"))
+            .await
+            .expect("Failed to load start sound"),
+    );
+    #[cfg(feature = "audio")]
+    #[cfg(not(feature = "wav"))]
     play_sound_once(
         &load_sound_from_bytes(include_bytes!("../assets/start.ogg"))
             .await
             .expect("Failed to load start sound"),
     );
+
     #[cfg(feature = "audio")]
     play_sound(
         &music,
@@ -102,6 +174,14 @@ async fn main() {
             #[cfg(feature = "audio")]
             stop_sound(&music);
             #[cfg(feature = "audio")]
+            #[cfg(feature = "wav")]
+            play_sound_once(
+                &load_sound_from_bytes(include_bytes!("../assets/game_over.wav"))
+                    .await
+                    .expect("Failed to load game over sound"),
+            );
+            #[cfg(feature = "audio")]
+            #[cfg(not(feature = "wav"))]
             play_sound_once(
                 &load_sound_from_bytes(include_bytes!("../assets/game_over.ogg"))
                     .await
@@ -127,21 +207,28 @@ async fn main() {
             }
         }
 
+        let inputs = get_input();
         // handle keyboard input
-        if is_key_down(KeyCode::Right) {
+        if inputs.right {
             if defender.x < (screen_width() - 25.0) {
                 defender.x += DEFENDER_SPEED * delta_time;
             }
         }
-        if is_key_down(KeyCode::Left) {
+        if inputs.left {
             if defender.x > 25.0 {
                 defender.x -= DEFENDER_SPEED * delta_time;
             }
         }
-        if is_key_pressed(KeyCode::Space) {
+        if inputs.shoot {
             if current_time - last_shot_time > SHOT_COOLDOWN {
                 #[cfg(feature = "audio")]
-                play_sound_once(&defender_shoot_sound);
+                play_sound(
+                    &defender_shoot_sound,
+                    PlaySoundParams {
+                        looped: false,
+                        volume: 0.5,
+                    },
+                );
                 bullets.push(defender);
                 last_shot_time = current_time;
             }
